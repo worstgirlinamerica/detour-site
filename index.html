@@ -755,39 +755,47 @@ function eventTitleFromStrings(strings, url){
 }
 
 function buildEventEntries(eventsDoc){
-  const objects=collectObjects(eventsDoc);
-  const raw=[];
-  objects.forEach(obj=>{
-    const urls=unique(allStrings(obj).filter(s=>/^https?:\/\//.test(s)));
-    if(!urls.length) return;
-    const refs=allImageRefs(obj);
-    const strings=unique(visibleTextStrings(obj).filter(s=>!/^https?:\/\//.test(s)));
-    urls.forEach(url=>{
-      if(!/axs\.com|tiktok\.com|gettyimages\.com|youtube\.com/i.test(url)) return;
-      raw.push({title:eventTitleFromStrings(strings,url), url, refs, strings});
-    });
-  });
-
-  const byUrl=new Map();
-  raw.forEach(ev=>{
-    const old=byUrl.get(ev.url);
-    if(!old || ev.refs.length > old.refs.length || (old.title==="Event" && ev.title!=="Event")) byUrl.set(ev.url,ev);
-  });
-
-  let entries=[...byUrl.values()];
-  const order=["LadyLand 2026 ft. Kim Petras","Berlin Show","Paris","Los Angeles"];
-  entries.sort((a,b)=>{
-    const ai=order.indexOf(a.title), bi=order.indexOf(b.title);
-    return (ai===-1?99:ai)-(bi===-1?99:bi);
-  });
-
+  const urls=unique(allStrings(eventsDoc).filter(s=>/^https?:\/\//.test(s)));
   const allRefs=allImageRefs(eventsDoc);
-  entries=entries.map((ev,i)=>({
-    ...ev,
-    refs: ev.refs.length ? ev.refs : (allRefs[i] ? [allRefs[i]] : [])
-  }));
 
-  return entries;
+  function firstUrl(pattern){
+    return urls.find(u=>pattern.test(u)) || "";
+  }
+
+  function pickRef(keywords, fallbackIndex){
+    const keys=keywords.map(k=>k.toLowerCase());
+    const matched=allRefs.find(ref=>{
+      const a=assetByRef(ref);
+      const name=String(cleanName(a,ref) || "").toLowerCase();
+      return keys.some(k=>name.includes(k));
+    });
+    return matched || allRefs[fallbackIndex] || "";
+  }
+
+  const entries=[
+    {
+      title:"NYC - LadyLand 2026",
+      url:firstUrl(/axs\.com/i),
+      refs:[pickRef(["nyc","new york","ladyland","default-2"],0)]
+    },
+    {
+      title:"Berlin Show",
+      url:firstUrl(/tiktok\.com/i),
+      refs:[pickRef(["berlin"],1)]
+    },
+    {
+      title:"Paris",
+      url:firstUrl(/gettyimages\.com/i),
+      refs:[pickRef(["paris"],2)]
+    },
+    {
+      title:"Los Angeles",
+      url:firstUrl(/youtube\.com/i),
+      refs:[pickRef(["los angeles","dtla","downtown","la"],3)]
+    }
+  ];
+
+  return entries.filter(ev=>ev.url);
 }
 
 function renderLyricViewer(index=0){
