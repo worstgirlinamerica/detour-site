@@ -481,8 +481,8 @@ a{text-decoration:underline;text-underline-offset:3px}
 
   .topbar{
     position:absolute;
-    padding:18px 14px;
-    gap:10px;
+    padding:16px 12px;
+    gap:8px;
     align-items:flex-start;
     background:transparent;
     backdrop-filter:none;
@@ -490,21 +490,21 @@ a{text-decoration:underline;text-underline-offset:3px}
   }
 
   .brand{
-    font-size:clamp(28px,11vw,54px);
+    font-size:clamp(25px,10vw,48px);
     line-height:.82;
-    max-width:42vw;
+    max-width:40vw;
     word-break:break-word;
   }
 
   .nav{
-    max-width:58vw;
+    max-width:60vw;
     gap:6px;
     justify-content:flex-end;
   }
 
   .pill{
-    font-size:clamp(13px,4.2vw,20px);
-    padding:8px 13px 7px;
+    font-size:clamp(12px,3.85vw,19px);
+    padding:8px 12px 7px;
     border-width:2px;
   }
 
@@ -520,29 +520,33 @@ a{text-decoration:underline;text-underline-offset:3px}
     position:absolute;
     inset:0;
     min-height:auto;
-    padding:100px 12px 30px;
+    padding:96px 10px 24px;
   }
 
   .hero-inner{
-    width:96vw;
+    width:92vw;
+    margin:auto;
   }
 
   .hero img{
-    max-height:54vh;
+    max-height:50vh;
   }
 
   .detour-title{
-    font-size:clamp(70px,23vw,130px);
+    font-size:clamp(58px,19vw,110px);
+    letter-spacing:-.07em;
+    text-align:center;
   }
 
   .scrap-card{
     position:absolute!important;
-    width:var(--w,72vw)!important;
+    left:0!important;
+    top:0!important;
+    width:var(--w,62vw)!important;
     min-width:0;
     margin:0;
-    left:auto!important;
-    top:auto!important;
     transform:translate(var(--x),var(--y)) rotate(var(--r))!important;
+    will-change:transform;
   }
 
   .scrap-card small{
@@ -576,7 +580,7 @@ a{text-decoration:underline;text-underline-offset:3px}
   }
 
   .panel h2{
-    font-size:clamp(56px,18vw,96px);
+    font-size:clamp(50px,16vw,88px);
   }
 
   .grid{
@@ -611,7 +615,9 @@ a{text-decoration:underline;text-underline-offset:3px}
   }
 
   .music-card a{
-    font-size:clamp(16px,5vw,25px);
+    font-size:clamp(15px,4.5vw,23px);
+    overflow-wrap:anywhere;
+    word-break:break-word;
   }
 
   .filter-dock{
@@ -786,14 +792,14 @@ function layoutFor(i){
   ];
 
   const mobileLayouts=[
-    ["-8vw","22vh","72vw","-5deg"],
-    ["38vw","18vh","72vw","3deg"],
-    ["8vw","42vh","76vw","-2deg"],
-    ["48vw","49vh","68vw","4deg"],
-    ["-12vw","64vh","70vw","2deg"],
-    ["30vw","70vh","76vw","-4deg"],
-    ["5vw","8vh","64vw","2deg"],
-    ["55vw","34vh","65vw","-3deg"]
+    ["5vw","18vh","62vw","-5deg"],
+    ["32vw","23vh","61vw","3deg"],
+    ["9vw","42vh","66vw","-2deg"],
+    ["31vw","51vh","63vw","4deg"],
+    ["4vw","65vh","60vw","2deg"],
+    ["35vw","69vh","59vw","-4deg"],
+    ["13vw","8vh","58vw","2deg"],
+    ["37vw","36vh","56vw","-3deg"]
   ];
 
   const layouts = mobile ? mobileLayouts : desktopLayouts;
@@ -1166,11 +1172,10 @@ function enableDrag(){
       if(active!==card || !active.dataset.dragging) return;
       const dx=e.clientX-startX;
       const dy=e.clientY-startY;
-      active.style.left=(baseX+dx)+"px";
-      active.style.top=(baseY+dy)+"px";
-      active.style.transform=`rotate(${active.style.getPropertyValue("--r")})`;
-      active.style.setProperty("--x","0px");
-      active.style.setProperty("--y","0px");
+      active.style.left="0px";
+      active.style.top="0px";
+      active.style.setProperty("--x",(baseX+dx)+"px");
+      active.style.setProperty("--y",(baseY+dy)+"px");
     });
 
     card.addEventListener("pointerup",()=>{
