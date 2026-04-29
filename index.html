@@ -556,6 +556,7 @@ a{text-decoration:underline;text-underline-offset:3px}
   .overlay{
     position:absolute;
     inset:0;
+    z-index:90;
     opacity:0;
     transform:translateY(12px);
     display:block;
@@ -572,7 +573,7 @@ a{text-decoration:underline;text-underline-offset:3px}
     position:absolute;
     left:12px;
     right:12px;
-    top:104px;
+    top:84px;
     bottom:12px;
     width:auto;
     max-height:none;
@@ -584,8 +585,15 @@ a{text-decoration:underline;text-underline-offset:3px}
     touch-action:pan-y;
   }
 
+  .close{
+    z-index:100;
+    background:rgba(255,255,255,.96);
+    margin-bottom:10px;
+  }
+
   .panel h2{
     font-size:clamp(50px,16vw,88px);
+    clear:both;
   }
 
   .grid{
@@ -631,7 +639,12 @@ a{text-decoration:underline;text-underline-offset:3px}
     right:12px;
     bottom:12px;
     margin:0;
-    z-index:60;
+    z-index:85;
+    pointer-events:auto;
+    background:rgba(255,255,255,.72);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    border-radius:999px;
     flex-wrap:nowrap;
     overflow-x:auto;
     overflow-y:hidden;
@@ -1170,6 +1183,8 @@ function enableDrag(){
 
   document.querySelectorAll(".scrap-card").forEach(card=>{
     card.addEventListener("pointerdown",e=>{
+      if(e.target.closest(".panel,.filter-dock,.topbar,.overlay.open")) return;
+      if(document.getElementById("overlay")?.classList.contains("open")) return;
       active=card;
       active.setPointerCapture(e.pointerId);
       active.style.zIndex=++state.z;
@@ -1179,10 +1194,12 @@ function enableDrag(){
       baseX=rect.left;
       baseY=rect.top;
       active.dataset.dragging="1";
+      e.preventDefault();
     });
 
     card.addEventListener("pointermove",e=>{
       if(active!==card || !active.dataset.dragging) return;
+      e.preventDefault();
       const dx=e.clientX-startX;
       const dy=e.clientY-startY;
       active.style.left="0px";
@@ -1202,6 +1219,15 @@ function enableDrag(){
     });
   });
 }
+
+// Keep mobile panel/filter gestures from being stolen by the draggable collage.
+["pointerdown","pointermove","touchstart","touchmove"].forEach(type=>{
+  document.addEventListener(type,e=>{
+    if(e.target.closest(".panel,.filter-dock")){
+      e.stopPropagation();
+    }
+  },{capture:true,passive:false});
+});
 
 document.addEventListener("click",e=>{
   const action=e.target.closest("[data-action]")?.dataset.action;
