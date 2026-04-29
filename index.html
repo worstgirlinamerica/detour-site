@@ -907,7 +907,6 @@ function openPanel(kind){
     const socialUrls=urls.filter(s=>/instagram|tiktok|facebook|twitter|x\.com|youtube|threads/i.test(s));
     html=`<h2>Socials</h2>
       ${linkListFor(socialUrls.length ? socialUrls : urls)}
-      <p class="meta">Socials are rendered as links only. Image refs in siteSettings are gallery/SEO assets, not social icons.</p>`;
   }
 
   content.innerHTML=html;
