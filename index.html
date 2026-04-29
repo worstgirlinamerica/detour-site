@@ -30,6 +30,7 @@
 <meta name="twitter:description" content="DETOUR">
 <meta name="twitter:image" content="https://cdn.sanity.io/images/0m1p5xal/production/bce0aa838728f43c41b089122378e0206d63eff5-3000x1575.png">
 <meta name="twitter:image:alt" content="DETOUR by Kim Petras">
+<meta name="twitter:url" content="https://detour-sigma.vercel.app">
 <meta name="twitter:site" content="@kimpetras">
 <meta name="twitter:creator" content="@kimpetras">
 
@@ -358,26 +359,6 @@ a{text-decoration:underline;text-underline-offset:3px}
   margin-top:16px;
 }
 
-.song-card{
-  text-align:left;
-  cursor:pointer;
-  appearance:none;
-  color:#050505;
-  font-family:var(--font-diatype),diatype,"Arial Narrow",Arial,sans-serif;
-}
-.song-card.active{
-  background:#050505;
-  color:#fff;
-}
-.song-card.active img{
-  filter:invert(1);
-  mix-blend-mode:difference;
-}
-.lyric-song-panel{
-  margin-top:18px;
-}
-.lyric-song-panel[hidden]{display:none!important}
-
 .script-accent{
   font-family:var(--font-cursive),"Dancing Script",cursive;
   font-weight:400;
@@ -557,7 +538,9 @@ function looksLikeSystemString(s){
   if(!t) return true;
   if(/^image-[a-f0-9]+-\d+x\d+-(png|jpg|jpeg|webp)$/i.test(t)) return true;
   if(/^[a-f0-9]{10,}$/i.test(t)) return true;
-  if(/^(lyrics|reference|slug|span|block|normal|image|song|music|videos|events|siteSettings|page|document|array|object)$/i.test(t)) return true;
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/i.test(t)) return true;
+  if(/^\d{4}-\d{2}-\d{2}$/i.test(t)) return true;
+  if(/^(lyrics|reference|slug|span|block|normal|image|song|songs|music|videos|events|siteSettings|page|document|array|object|asset|current|children|markDefs|style|_type|_id|_key|_ref)$/i.test(t)) return true;
   if(/^drafts\./i.test(t)) return true;
   return false;
 }
@@ -568,6 +551,46 @@ function visibleTextStrings(obj){
 
 function unique(arr){
   return [...new Set(arr.filter(Boolean))];
+}
+
+function escapeHtml(str){
+  return String(str ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function readableUrl(url){
+  return String(url).replace(/^https?:\/\//,"").replace(/\/$/,"");
+}
+
+function collectContentObjects(obj){
+  const out=[];
+  (function walk(x){
+    if(Array.isArray(x)) x.forEach(walk);
+    else if(x && typeof x==="object"){
+      const strings=visibleTextStrings(x);
+      const urls=strings.filter(s=>/^https?:\/\//.test(s));
+      const refs=allImageRefs(x);
+      if(urls.length || refs.length || strings.some(s=>/Need For Speed|LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA|DETOUR/i.test(s))){
+        out.push({obj:x, strings, urls, refs});
+      }
+      Object.values(x).forEach(walk);
+    }
+  })(obj);
+  return out;
+}
+
+function bestTitle(strings, fallback="Untitled"){
+  const clean=unique(strings)
+    .filter(s=>!/^https?:\/\//.test(s))
+    .filter(s=>!looksLikeSystemString(s));
+  return clean.find(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s))
+    || clean.find(s=>/Need For Speed|DETOUR/i.test(s))
+    || clean.find(s=>s.length < 80)
+    || fallback;
 }
 
 function setState(next){
@@ -641,85 +664,6 @@ function linkListFor(urls){
   return `<div class="link-list">`+clean.map(url=>`<a target="_blank" rel="noopener noreferrer" href="${url}">${url.replace(/^https?:\/\//,"")}</a>`).join("")+`</div>`;
 }
 
-
-function titleCaseFromSlug(s){
-  return String(s||"")
-    .replace(/[-_]+/g," ")
-    .replace(/\b\w/g,c=>c.toUpperCase());
-}
-
-function firstUsefulTitle(strings){
-  return strings.find(s=>/Need For Speed|Kim Petras|Starlet|DETOUR/i.test(s) && !/^DETOUR$/i.test(s)) || strings.find(s=>s.length>2 && s.length<80) || "Song";
-}
-
-function textLooksLikeLyric(s){
-  return /\b(cuz|cause|got|need|speed|room|tour|starlet|pop star|baby|love|night|dance|want|feel)\b/i.test(s) || s.length>45;
-}
-
-function collectSongObjects(obj){
-  const songs=[];
-  function walk(x){
-    if(Array.isArray(x)){ x.forEach(walk); return; }
-    if(!x || typeof x!=="object") return;
-
-    const strings=visibleTextStrings(x).filter(s=>!/^https?:\/\//.test(s));
-    const refs=allImageRefs(x);
-    const hasLyricText=strings.filter(textLooksLikeLyric).length>=2;
-    const hasSongShape=Boolean(x.song || x.title || x.name || x.slug || x.lyrics || x.body || x.content);
-
-    if((hasLyricText || (refs.length && hasSongShape)) && strings.length){
-      let title=(typeof x.title==="string" && x.title) || (typeof x.name==="string" && x.name) || "";
-      if(!title && x.slug && typeof x.slug.current==="string") title=titleCaseFromSlug(x.slug.current);
-      if(!title) title=firstUsefulTitle(strings);
-      const lyricLines=unique(strings)
-        .filter(s=>!/^https?:\/\//.test(s))
-        .filter(s=>!/^DETOUR$/i.test(s))
-        .filter(s=>s!==title)
-        .filter(s=>textLooksLikeLyric(s));
-      songs.push({title, refs, lines:lyricLines, strings:unique(strings)});
-    }
-
-    Object.values(x).forEach(walk);
-  }
-  walk(obj);
-
-  const seen=new Set();
-  return songs.filter(song=>{
-    const key=(song.title+"|"+song.lines.join("|")).toLowerCase();
-    if(seen.has(key)) return false;
-    seen.add(key);
-    return song.lines.length || song.refs.length;
-  });
-}
-
-function renderLyricsSongs(lyricsDoc, musicDoc){
-  let songs=collectSongObjects(lyricsDoc);
-  if(!songs.length) songs=collectSongObjects(musicDoc);
-
-  if(!songs.length){
-    const refs=allImageRefs(lyricsDoc).length ? allImageRefs(lyricsDoc) : allImageRefs(musicDoc);
-    const lines=unique(visibleTextStrings(lyricsDoc)
-      .filter(s=>!/^https?:\/\//.test(s))
-      .filter(s=>!/^\d{4}-\d{2}-\d{2}T/i.test(s))
-      .filter(s=>!/^(lyricsToggle|eventsToggle|videosToggle|musicToggle|Lyrics|Events|Videos|Music|TikTok|DETOUR)$/i.test(s)));
-    const title=lines.find(s=>/Need For Speed/i.test(s)) || "Lyrics";
-    return `<h2>Lyrics</h2>
-      ${imageGridFor(refs.slice(0,1),1)}
-      <div class="text-clean">${lines.filter(s=>s!==title).join("\n")}</div>`;
-  }
-
-  return `<h2>Lyrics</h2>
-    <div class="grid">`+songs.map((song,i)=>{
-      const ref=song.refs[0] || allImageRefs(musicDoc)[i] || allImageRefs(lyricsDoc)[i] || "";
-      return `<button class="info-card song-card ${i===0?"active":""}" data-song-index="${i}" style="text-align:left;cursor:pointer">
-        ${ref ? `<img src="${imageFromRef(ref)}" alt="">` : ""}
-        <h3>${song.title}</h3>
-        <small>Click cover to view lyrics</small>
-      </button>`;
-    }).join("")+`</div>
-    `+songs.map((song,i)=>`<div id="lyricsSong${i}" class="text-clean lyric-song-panel" ${i===0?"":"hidden"}>${(song.lines.length?song.lines:song.strings).join("\n")}</div>`).join("");
-}
-
 function youtubeEmbed(url){
   const id=(url.match(/[?&]v=([^&]+)/)||[])[1];
   return id ? `https://www.youtube.com/embed/${id}` : "";
@@ -748,29 +692,64 @@ function openPanel(kind){
   }
 
   if(kind==="music"){
-    const urls=allStrings(music).filter(s=>/^https?:\/\//.test(s));
+    const urls=unique(allStrings(music).filter(s=>/^https?:\/\//.test(s)));
     const refs=allImageRefs(music);
-    const text=visibleTextStrings(music).filter(s=>!/^https?:\/\//.test(s));
+    const text=unique(visibleTextStrings(music)
+      .filter(s=>!/^https?:\/\//.test(s))
+      .filter(s=>!/^(Need For Speed by Kim Petras)$/i.test(s))
+      .filter(s=>!/Toggle$/i.test(s))
+    );
+    const cover=refs[0];
     html=`<h2>Music</h2>
+      ${cover ? `<div class="info-card" style="max-width:360px;margin-bottom:16px"><img src="${imageFromRef(cover)}" alt=""><small>${escapeHtml(cleanName(assetByRef(cover),cover))}</small></div>` : ""}
       ${linkListFor(urls)}
-      <div class="text-clean">${unique(text).join("\n")}</div>
-      ${imageGridFor(refs,8)}`;
+      <div class="text-clean">${text.map(escapeHtml).join("\n")}</div>`;
   }
 
   if(kind==="lyrics"){
-    html=renderLyricsSongs(lyrics, music);
+    const objects=collectContentObjects(lyrics)
+      .filter(item=>item.strings.some(s=>/Need For Speed|DETOUR|\bCuz\b|tour non-stop|pop star|Starlet/i.test(s)) || item.refs.length);
+    const refs=allImageRefs(lyrics);
+    const cover=refs[0];
+    const allLines=unique(visibleTextStrings(lyrics)
+      .filter(s=>!/^https?:\/\//.test(s))
+      .filter(s=>!/^(Need For Speed by Kim Petras|DETOUR)$/i.test(s))
+      .filter(s=>!/Toggle$/i.test(s))
+      .filter(s=>s.length > 1)
+    );
+    const title=visibleTextStrings(lyrics).find(s=>/Need For Speed/i.test(s)) || "Need For Speed";
+    html=`<h2>Lyrics</h2>
+      <div class="grid">
+        <button class="info-card" type="button" style="text-align:left;cursor:pointer" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">
+          ${cover ? `<img src="${imageFromRef(cover)}" alt="">` : ""}
+          <h3>${escapeHtml(title)}</h3>
+          <p>Click to show / hide lyrics</p>
+        </button>
+        <div class="info-card" hidden>
+          <div class="text-clean">${allLines.map(escapeHtml).join("\n")}</div>
+        </div>
+      </div>`;
     panel.className="panel left wide";
   }
 
   if(kind==="events"){
-    const refs=allImageRefs(events);
-    const urls=allStrings(events).filter(s=>/^https?:\/\//.test(s));
-    const titles=unique(visibleTextStrings(events).filter(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s)));
-    html=`<h2>Events</h2><div class="grid">`+urls.map((url,i)=>`
+    const items=collectContentObjects(events)
+      .filter(item=>item.urls.length || item.strings.some(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s)));
+    const dedup=[];
+    const seen=new Set();
+    for(const item of items){
+      const url=item.urls.find(u=>/axs|tiktok|getty|youtube/i.test(u)) || item.urls[0] || "";
+      const title=bestTitle(item.strings,"Event");
+      const key=(url || title).toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      dedup.push({title,url,ref:item.refs[0]});
+    }
+    html=`<h2>Events</h2><div class="grid">`+dedup.map(card=>`
       <div class="info-card">
-        ${refs[i] ? `<img src="${imageFromRef(refs[i])}" alt="">` : ""}
-        <h3>${titles[i] || "Event"}</h3>
-        <p><a target="_blank" rel="noopener noreferrer" href="${url}">Open</a></p>
+        ${card.ref ? `<img src="${imageFromRef(card.ref)}" alt="">` : ""}
+        <h3>${escapeHtml(card.title)}</h3>
+        ${card.url ? `<p><a target="_blank" rel="noopener noreferrer" href="${card.url}">${readableUrl(card.url)}</a></p>` : ""}
       </div>
     `).join("")+`</div>`;
   }
@@ -789,11 +768,11 @@ function openPanel(kind){
 
   if(kind==="socials"){
     const urls=unique(allStrings(settings).filter(s=>/^https?:\/\//.test(s)));
-    const socialUrls=urls.filter(s=>/instagram|tiktok|facebook|twitter|x\.com|youtube/i.test(s));
-    const refs=allImageRefs(settings).filter(ref=>ref!==settings?.seo?.image?.asset?._ref);
+    const socialUrls=urls.filter(s=>/instagram|tiktok|facebook|twitter|x\.com|youtube|spotify|apple|soundcloud|threads|linktr/i.test(s));
+    const chosen=socialUrls.length ? socialUrls : urls;
     html=`<h2>Socials</h2>
-      ${linkListFor(socialUrls.length ? socialUrls : urls)}
-      ${imageGridFor(refs,18)}`;
+      ${linkListFor(chosen)}
+      <p class="meta">Images are hidden here on purpose because the refs in siteSettings are the same gallery/SEO assets, not confirmed social icons.</p>`;
   }
 
   content.innerHTML=html;
@@ -869,13 +848,6 @@ function enableDrag(){
 document.addEventListener("click",e=>{
   const action=e.target.closest("[data-action]")?.dataset.action;
   if(action) route(action);
-
-  const songButton=e.target.closest("[data-song-index]");
-  if(songButton){
-    const idx=songButton.dataset.songIndex;
-    document.querySelectorAll("[data-song-index]").forEach(b=>b.classList.toggle("active",b.dataset.songIndex===idx));
-    document.querySelectorAll(".lyric-song-panel").forEach(p=>p.hidden = p.id !== "lyricsSong"+idx);
-  }
 
   const filter=e.target.closest("[data-filter]")?.dataset.filter;
   if(filter){
