@@ -634,16 +634,18 @@ a{text-decoration:underline;text-underline-offset:3px}
   }
 
   .filter-dock{
-    position:absolute;
-    left:12px;
-    right:12px;
-    bottom:12px;
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 10px);
     margin:0;
-    z-index:85;
+    z-index:160;
     pointer-events:auto;
-    background:rgba(255,255,255,.72);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
+    display:flex;
+    background:rgba(255,255,255,.88);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    border:2px solid #050505;
     border-radius:999px;
     flex-wrap:nowrap;
     overflow-x:auto;
@@ -651,7 +653,12 @@ a{text-decoration:underline;text-underline-offset:3px}
     -webkit-overflow-scrolling:touch;
     overscroll-behavior:contain;
     touch-action:pan-x;
-    padding-bottom:2px;
+    padding:6px;
+    box-shadow:8px 8px 0 rgba(0,0,0,.10);
+  }
+
+  .filter-dock[hidden]{
+    display:none!important;
   }
 
   .filter-dock .pill{
@@ -661,11 +668,12 @@ a{text-decoration:underline;text-underline-offset:3px}
   }
 
   .status{
-    position:absolute;
+    position:fixed;
     left:12px;
-    bottom:62px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 72px);
     margin:0;
     font-size:11px;
+    z-index:150;
   }
 }
 
@@ -1193,15 +1201,26 @@ function enableDrag(){
       startY=e.clientY;
       baseX=rect.left;
       baseY=rect.top;
-      active.dataset.dragging="1";
-      e.preventDefault();
+      active.dataset.dragging="pending";
     });
 
     card.addEventListener("pointermove",e=>{
       if(active!==card || !active.dataset.dragging) return;
-      e.preventDefault();
       const dx=e.clientX-startX;
       const dy=e.clientY-startY;
+      const mobile=window.matchMedia("(max-width:800px)").matches;
+
+      if(active.dataset.dragging==="pending"){
+        if(mobile && Math.abs(dy)>Math.abs(dx)*1.25 && Math.abs(dy)>10){
+          delete active.dataset.dragging;
+          active=null;
+          return;
+        }
+        if(Math.hypot(dx,dy)<7) return;
+        active.dataset.dragging="1";
+      }
+
+      e.preventDefault();
       active.style.left="0px";
       active.style.top="0px";
       active.style.setProperty("--x",(baseX+dx)+"px");
