@@ -32,7 +32,6 @@
 <meta name="twitter:image:alt" content="DETOUR by Kim Petras">
 <meta name="twitter:site" content="@kimpetras">
 <meta name="twitter:creator" content="@kimpetras">
-<link rel="canonical" href="https://detour-sigma.vercel.app">
 
 <link rel="preconnect" href="https://cdn.sanity.io">
 <link rel="preconnect" href="https://www.youtube.com">
@@ -352,27 +351,32 @@ a{text-decoration:underline;text-underline-offset:3px}
   line-height:1;
 }
 
-.platform-link{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:18px;
-  border:2px solid #050505;
-  border-radius:999px;
-  padding:12px 18px 10px;
-  text-decoration:none;
-  background:rgba(255,255,255,.55);
-}
-.platform-link:hover{background:#050505;color:#fff}
-.platform-link span:first-child{text-transform:uppercase}
-.platform-link span:last-child{font-style:italic;font-size:.72em;opacity:.75;text-transform:none;word-break:break-all}
-
 .section-images{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
   gap:14px;
   margin-top:16px;
 }
+
+.song-card{
+  text-align:left;
+  cursor:pointer;
+  appearance:none;
+  color:#050505;
+  font-family:var(--font-diatype),diatype,"Arial Narrow",Arial,sans-serif;
+}
+.song-card.active{
+  background:#050505;
+  color:#fff;
+}
+.song-card.active img{
+  filter:invert(1);
+  mix-blend-mode:difference;
+}
+.lyric-song-panel{
+  margin-top:18px;
+}
+.lyric-song-panel[hidden]{display:none!important}
 
 .script-accent{
   font-family:var(--font-cursive),"Dancing Script",cursive;
@@ -552,11 +556,9 @@ function looksLikeSystemString(s){
   const t=s.trim();
   if(!t) return true;
   if(/^image-[a-f0-9]+-\d+x\d+-(png|jpg|jpeg|webp)$/i.test(t)) return true;
-  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/i.test(t)) return true;
-  if(/^drafts\./i.test(t)) return true;
   if(/^[a-f0-9]{10,}$/i.test(t)) return true;
-  if(/^[A-Za-z0-9_-]{16,}$/.test(t) && !/^https?:\/\//.test(t) && !/[\s'’.,!?]/.test(t)) return true;
-  if(/^(lyrics|reference|slug|span|block|normal|image|song|music|videos|events|siteSettings|page|document|array|object|asset|file|seo|_type|_id|_key|_rev)$/i.test(t)) return true;
+  if(/^(lyrics|reference|slug|span|block|normal|image|song|music|videos|events|siteSettings|page|document|array|object)$/i.test(t)) return true;
+  if(/^drafts\./i.test(t)) return true;
   return false;
 }
 
@@ -633,69 +635,89 @@ function imageGridFor(refs, limit=24){
   }).join("")+`</div>`;
 }
 
-function labelFromUrl(url){
-  try{
-    const host=new URL(url).hostname.replace(/^www\./,"").toLowerCase();
-    if(host.includes("instagram")) return "Instagram";
-    if(host.includes("tiktok")) return "TikTok";
-    if(host.includes("facebook")) return "Facebook";
-    if(host.includes("youtube") || host.includes("youtu.be")) return "YouTube";
-    if(host.includes("twitter") || host.includes("x.com")) return "X";
-    if(host.includes("axs")) return "Tickets";
-    if(host.includes("getty")) return "Photos";
-    if(host.includes("ffm.to")) return "Listen";
-    if(host.includes("umusic")) return "Presave";
-    return host.split(".")[0];
-  }catch(e){return "Link"}
-}
-
 function linkListFor(urls){
   const clean=unique(urls).filter(Boolean);
   if(!clean.length) return "";
-  return `<div class="link-list">`+clean.map(url=>`<a class="platform-link" target="_blank" rel="noopener noreferrer" href="${url}"><span>${labelFromUrl(url)}</span><span>${url.replace(/^https?:\/\//,"")}</span></a>`).join("")+`</div>`;
+  return `<div class="link-list">`+clean.map(url=>`<a target="_blank" rel="noopener noreferrer" href="${url}">${url.replace(/^https?:\/\//,"")}</a>`).join("")+`</div>`;
 }
 
-function collectLinkObjects(obj){
-  const out=[];
+
+function titleCaseFromSlug(s){
+  return String(s||"")
+    .replace(/[-_]+/g," ")
+    .replace(/\b\w/g,c=>c.toUpperCase());
+}
+
+function firstUsefulTitle(strings){
+  return strings.find(s=>/Need For Speed|Kim Petras|Starlet|DETOUR/i.test(s) && !/^DETOUR$/i.test(s)) || strings.find(s=>s.length>2 && s.length<80) || "Song";
+}
+
+function textLooksLikeLyric(s){
+  return /\b(cuz|cause|got|need|speed|room|tour|starlet|pop star|baby|love|night|dance|want|feel)\b/i.test(s) || s.length>45;
+}
+
+function collectSongObjects(obj){
+  const songs=[];
   function walk(x){
-    if(Array.isArray(x)) x.forEach(walk);
-    else if(x && typeof x==="object"){
-      const values=Object.values(x).filter(v=>typeof v==="string");
-      const urls=values.filter(v=>/^https?:\/\//.test(v));
-      if(urls.length){
-        const label=x.label || x.title || x.name || x.city || x.location || values.find(v=>!/^https?:\/\//.test(v) && !looksLikeSystemString(v));
-        const refs=allImageRefs(x);
-        urls.forEach(url=>out.push({url,label:label || labelFromUrl(url),refs,strings:visibleTextStrings(x)}));
-      }
-      Object.values(x).forEach(walk);
+    if(Array.isArray(x)){ x.forEach(walk); return; }
+    if(!x || typeof x!=="object") return;
+
+    const strings=visibleTextStrings(x).filter(s=>!/^https?:\/\//.test(s));
+    const refs=allImageRefs(x);
+    const hasLyricText=strings.filter(textLooksLikeLyric).length>=2;
+    const hasSongShape=Boolean(x.song || x.title || x.name || x.slug || x.lyrics || x.body || x.content);
+
+    if((hasLyricText || (refs.length && hasSongShape)) && strings.length){
+      let title=(typeof x.title==="string" && x.title) || (typeof x.name==="string" && x.name) || "";
+      if(!title && x.slug && typeof x.slug.current==="string") title=titleCaseFromSlug(x.slug.current);
+      if(!title) title=firstUsefulTitle(strings);
+      const lyricLines=unique(strings)
+        .filter(s=>!/^https?:\/\//.test(s))
+        .filter(s=>!/^DETOUR$/i.test(s))
+        .filter(s=>s!==title)
+        .filter(s=>textLooksLikeLyric(s));
+      songs.push({title, refs, lines:lyricLines, strings:unique(strings)});
     }
+
+    Object.values(x).forEach(walk);
   }
   walk(obj);
+
   const seen=new Set();
-  return out.filter(item=>{
-    if(seen.has(item.url)) return false;
-    seen.add(item.url);
-    return true;
+  return songs.filter(song=>{
+    const key=(song.title+"|"+song.lines.join("|")).toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return song.lines.length || song.refs.length;
   });
 }
 
-function socialLinksFromDocs(){
-  const links=collectLinkObjects(state.settings).concat(collectLinkObjects(state.docs));
-  return links.filter(item=>/instagram|tiktok|facebook|twitter|x\.com|youtube/i.test(item.url));
-}
+function renderLyricsSongs(lyricsDoc, musicDoc){
+  let songs=collectSongObjects(lyricsDoc);
+  if(!songs.length) songs=collectSongObjects(musicDoc);
 
-function eventItemsFromDoc(events){
-  const links=collectLinkObjects(events).filter(item=>/axs|tiktok|getty|youtube|youtu\.be|tickets|event/i.test(item.url));
-  return links.map((item,i)=>{
-    const hay=(item.strings || []).join(" ");
-    let title=item.label || "Event";
-    if(/ladyland|axs/i.test(item.url+" "+hay)) title="NYC — LadyLand 2026";
-    else if(/berlin/i.test(item.url+" "+hay)) title="Berlin";
-    else if(/paris|getty/i.test(item.url+" "+hay)) title="Paris";
-    else if(/los angeles|dtla|OLYkO_eGees/i.test(item.url+" "+hay)) title="Los Angeles";
-    const ref=(item.refs && item.refs[0]) || allImageRefs(events)[i] || "";
-    return {title,url:item.url,ref};
-  });
+  if(!songs.length){
+    const refs=allImageRefs(lyricsDoc).length ? allImageRefs(lyricsDoc) : allImageRefs(musicDoc);
+    const lines=unique(visibleTextStrings(lyricsDoc)
+      .filter(s=>!/^https?:\/\//.test(s))
+      .filter(s=>!/^\d{4}-\d{2}-\d{2}T/i.test(s))
+      .filter(s=>!/^(lyricsToggle|eventsToggle|videosToggle|musicToggle|Lyrics|Events|Videos|Music|TikTok|DETOUR)$/i.test(s)));
+    const title=lines.find(s=>/Need For Speed/i.test(s)) || "Lyrics";
+    return `<h2>Lyrics</h2>
+      ${imageGridFor(refs.slice(0,1),1)}
+      <div class="text-clean">${lines.filter(s=>s!==title).join("\n")}</div>`;
+  }
+
+  return `<h2>Lyrics</h2>
+    <div class="grid">`+songs.map((song,i)=>{
+      const ref=song.refs[0] || allImageRefs(musicDoc)[i] || allImageRefs(lyricsDoc)[i] || "";
+      return `<button class="info-card song-card ${i===0?"active":""}" data-song-index="${i}" style="text-align:left;cursor:pointer">
+        ${ref ? `<img src="${imageFromRef(ref)}" alt="">` : ""}
+        <h3>${song.title}</h3>
+        <small>Click cover to view lyrics</small>
+      </button>`;
+    }).join("")+`</div>
+    `+songs.map((song,i)=>`<div id="lyricsSong${i}" class="text-clean lyric-song-panel" ${i===0?"":"hidden"}>${(song.lines.length?song.lines:song.strings).join("\n")}</div>`).join("");
 }
 
 function youtubeEmbed(url){
@@ -726,45 +748,29 @@ function openPanel(kind){
   }
 
   if(kind==="music"){
-    const urls=unique(allStrings(music).filter(s=>/^https?:\/\//.test(s)));
+    const urls=allStrings(music).filter(s=>/^https?:\/\//.test(s));
     const refs=allImageRefs(music);
-    const text=unique(visibleTextStrings(music)
-      .filter(s=>!/^https?:\/\//.test(s))
-      .filter(s=>!/^(lyricsToggle|eventsToggle|videosToggle|musicToggle|Lyrics|Events|Videos|Music|TikTok)$/i.test(s))
-      .filter(s=>!/^\d{4}-\d{2}-\d{2}T/i.test(s)));
+    const text=visibleTextStrings(music).filter(s=>!/^https?:\/\//.test(s));
     html=`<h2>Music</h2>
-      ${imageGridFor(refs,4)}
       ${linkListFor(urls)}
-      <div class="text-clean">${text.join("\n")}</div>`;
+      <div class="text-clean">${unique(text).join("\n")}</div>
+      ${imageGridFor(refs,8)}`;
   }
 
   if(kind==="lyrics"){
-    const refs=allImageRefs(lyrics).length ? allImageRefs(lyrics) : allImageRefs(music);
-    const lines=unique(visibleTextStrings(lyrics)
-      .filter(s=>!/^https?:\/\//.test(s))
-      .filter(s=>!/^\d{4}-\d{2}-\d{2}T/i.test(s))
-      .filter(s=>!/^(lyricsToggle|eventsToggle|videosToggle|musicToggle|Lyrics|Events|Videos|Music|TikTok|DETOUR)$/i.test(s)));
-    const title=lines.find(s=>/Need For Speed/i.test(s)) || "Need For Speed";
-    const lyricText=lines.filter(s=>s!==title).join("\n");
-    html=`<h2>Lyrics</h2>
-      <div class="grid">
-        ${refs.slice(0,1).map(ref=>`<button class="info-card" style="text-align:left;cursor:pointer" onclick="document.getElementById('lyricsText').hidden=!document.getElementById('lyricsText').hidden">
-          <img src="${imageFromRef(ref)}" alt="">
-          <h3>${title}</h3>
-          <small>Click cover to toggle lyrics</small>
-        </button>`).join("")}
-      </div>
-      <div id="lyricsText" class="text-clean" style="margin-top:18px">${lyricText}</div>`;
+    html=renderLyricsSongs(lyrics, music);
     panel.className="panel left wide";
   }
 
   if(kind==="events"){
-    const items=eventItemsFromDoc(events);
-    html=`<h2>Events</h2><div class="grid">`+items.map(item=>`
+    const refs=allImageRefs(events);
+    const urls=allStrings(events).filter(s=>/^https?:\/\//.test(s));
+    const titles=unique(visibleTextStrings(events).filter(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s)));
+    html=`<h2>Events</h2><div class="grid">`+urls.map((url,i)=>`
       <div class="info-card">
-        ${item.ref ? `<img src="${imageFromRef(item.ref)}" alt="">` : ""}
-        <h3>${item.title}</h3>
-        <p><a target="_blank" rel="noopener noreferrer" href="${item.url}">${labelFromUrl(item.url)}</a></p>
+        ${refs[i] ? `<img src="${imageFromRef(refs[i])}" alt="">` : ""}
+        <h3>${titles[i] || "Event"}</h3>
+        <p><a target="_blank" rel="noopener noreferrer" href="${url}">Open</a></p>
       </div>
     `).join("")+`</div>`;
   }
@@ -782,11 +788,12 @@ function openPanel(kind){
   }
 
   if(kind==="socials"){
-    const socials=socialLinksFromDocs();
-    const urls=unique(socials.map(item=>item.url));
+    const urls=unique(allStrings(settings).filter(s=>/^https?:\/\//.test(s)));
+    const socialUrls=urls.filter(s=>/instagram|tiktok|facebook|twitter|x\.com|youtube/i.test(s));
+    const refs=allImageRefs(settings).filter(ref=>ref!==settings?.seo?.image?.asset?._ref);
     html=`<h2>Socials</h2>
-      ${linkListFor(urls)}
-      ${urls.length ? "" : `<p>No additional social URLs were exposed in the public dataset.</p>`}`;
+      ${linkListFor(socialUrls.length ? socialUrls : urls)}
+      ${imageGridFor(refs,18)}`;
   }
 
   content.innerHTML=html;
@@ -862,6 +869,13 @@ function enableDrag(){
 document.addEventListener("click",e=>{
   const action=e.target.closest("[data-action]")?.dataset.action;
   if(action) route(action);
+
+  const songButton=e.target.closest("[data-song-index]");
+  if(songButton){
+    const idx=songButton.dataset.songIndex;
+    document.querySelectorAll("[data-song-index]").forEach(b=>b.classList.toggle("active",b.dataset.songIndex===idx));
+    document.querySelectorAll(".lyric-song-panel").forEach(p=>p.hidden = p.id !== "lyricsSong"+idx);
+  }
 
   const filter=e.target.closest("[data-filter]")?.dataset.filter;
   if(filter){
