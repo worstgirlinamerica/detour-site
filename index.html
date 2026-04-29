@@ -675,47 +675,117 @@ function titleFromStrings(strings){
     "Lyrics";
 }
 
+function lyricTitleFromEntry(strings, refs){
+  const joined=strings.join("\n");
+  const filenames=refs.map(ref=>cleanName(assetByRef(ref),ref).toLowerCase()).join(" ");
+  if(/need\+?for\+?speed|need for speed/i.test(filenames) || /Need For Speed by Kim Petras/i.test(joined)) return "Need For Speed";
+  if(/ilyl|i[ _-]?like[ _-]?your[ _-]?look/i.test(filenames) || /looked better on me|your look|ur look|i like/i.test(joined)) return "I Like Your Look";
+  if(/freak/i.test(filenames) || /freak it/i.test(joined)) return "Freak It";
+  if(/polo/i.test(filenames) || /cha-ching|yeah polo|polo/i.test(joined)) return "Polo";
+  return titleFromStrings(strings);
+}
+
 function buildLyricEntries(lyricsDoc){
   const objects=collectObjects(lyricsDoc);
-  const raw=objects.map(obj=>{
+  const raw=[];
+
+  objects.forEach(obj=>{
     const refs=allImageRefs(obj);
     const strings=unique(visibleTextStrings(obj)
       .filter(s=>!/^https?:\/\//.test(s))
       .filter(s=>!/^(DETOUR|Lyrics)$/i.test(s))
       .map(s=>s.trim()));
-    const title=titleFromStrings(strings);
-    const lyricLines=strings.filter(s=>s!==title)
-      .filter(s=>!/^(Need For Speed|Need For Speed by Kim Petras)$/i.test(s) || title !== s)
+
+    if(!strings.length) return;
+
+    const title=lyricTitleFromEntry(strings, refs);
+    const lyricLines=strings
+      .filter(s=>s!==title)
+      .filter(s=>!/^(Need For Speed|Need For Speed by Kim Petras|I Like Your Look|Freak It|Polo)$/i.test(s))
+      .filter(s=>!/^\d+ lines$/i.test(s))
       .filter(s=>s.length > 1);
-    return {title, refs, lyricLines, size: strings.join("\n").length};
-  }).filter(entry=>{
-    if(!entry.lyricLines.length) return false;
-    if(entry.lyricLines.length > 90) return false;      // drops the wrapper that contained every song
-    if(entry.size > 5000) return false;                 // drops all-lyrics container
-    return entry.refs.length || /Need For Speed|Kim Petras/i.test(entry.title);
+
+    const size=strings.join("\n").length;
+    if(!lyricLines.length) return;
+    if(lyricLines.length > 90 || size > 5000) return;
+    if(!refs.length && !/Need For Speed|I Like Your Look|Freak It|Polo/i.test(title)) return;
+
+    raw.push({title, refs, lyricLines, size});
   });
 
+  const wanted=["Need For Speed","I Like Your Look","Freak It","Polo"];
   const byTitle=new Map();
   raw.forEach(entry=>{
     const key=entry.title.toLowerCase().replace(/\s+/g," ").trim();
     const old=byTitle.get(key);
-    if(!old || entry.lyricLines.length < old.lyricLines.length) byTitle.set(key, entry);
+    if(!old || (entry.refs.length > old.refs.length) || (entry.lyricLines.length < old.lyricLines.length && entry.refs.length === old.refs.length)){
+      byTitle.set(key, entry);
+    }
   });
 
   let entries=[...byTitle.values()];
+  entries.sort((a,b)=>{
+    const ai=wanted.indexOf(a.title);
+    const bi=wanted.indexOf(b.title);
+    if(ai!==-1 || bi!==-1) return (ai===-1?99:ai)-(bi===-1?99:bi);
+    return a.title.localeCompare(b.title);
+  });
+
   if(!entries.length){
     const refs=allImageRefs(lyricsDoc);
     const lines=unique(visibleTextStrings(lyricsDoc)
       .filter(s=>!/^https?:\/\//.test(s))
       .filter(s=>!/^DETOUR$|^Lyrics$/i.test(s)));
     if(lines.length){
-      entries=[{
-        title:titleFromStrings(lines),
-        refs,
-        lyricLines:lines.filter(s=>s!==titleFromStrings(lines)).slice(0,80)
-      }];
+      const title=lyricTitleFromEntry(lines, refs);
+      entries=[{title, refs, lyricLines:lines.filter(s=>s!==title).slice(0,80)}];
     }
   }
+
+  return entries;
+}
+
+function eventTitleFromStrings(strings, url){
+  const joined=(strings.join(" ")+" "+url).toLowerCase();
+  if(/ladyland|axs/.test(joined)) return "LadyLand 2026 ft. Kim Petras";
+  if(/berlin/.test(joined)) return "Berlin Show";
+  if(/paris|getty|plaza athenee/.test(joined)) return "Paris";
+  if(/los angeles|dtla|youtube/.test(joined)) return "Los Angeles";
+  return strings.find(s=>/ladyland|berlin|paris|los angeles|nyc|dtla/i.test(s)) || "Event";
+}
+
+function buildEventEntries(eventsDoc){
+  const objects=collectObjects(eventsDoc);
+  const raw=[];
+  objects.forEach(obj=>{
+    const urls=unique(allStrings(obj).filter(s=>/^https?:\/\//.test(s)));
+    if(!urls.length) return;
+    const refs=allImageRefs(obj);
+    const strings=unique(visibleTextStrings(obj).filter(s=>!/^https?:\/\//.test(s)));
+    urls.forEach(url=>{
+      if(!/axs\.com|tiktok\.com|gettyimages\.com|youtube\.com/i.test(url)) return;
+      raw.push({title:eventTitleFromStrings(strings,url), url, refs, strings});
+    });
+  });
+
+  const byUrl=new Map();
+  raw.forEach(ev=>{
+    const old=byUrl.get(ev.url);
+    if(!old || ev.refs.length > old.refs.length || (old.title==="Event" && ev.title!=="Event")) byUrl.set(ev.url,ev);
+  });
+
+  let entries=[...byUrl.values()];
+  const order=["LadyLand 2026 ft. Kim Petras","Berlin Show","Paris","Los Angeles"];
+  entries.sort((a,b)=>{
+    const ai=order.indexOf(a.title), bi=order.indexOf(b.title);
+    return (ai===-1?99:ai)-(bi===-1?99:bi);
+  });
+
+  const allRefs=allImageRefs(eventsDoc);
+  entries=entries.map((ev,i)=>({
+    ...ev,
+    refs: ev.refs.length ? ev.refs : (allRefs[i] ? [allRefs[i]] : [])
+  }));
 
   return entries;
 }
@@ -787,14 +857,12 @@ function openPanel(kind){
   }
 
   if(kind==="events"){
-    const refs=allImageRefs(events);
-    const urls=allStrings(events).filter(s=>/^https?:\/\//.test(s));
-    const titles=unique(visibleTextStrings(events).filter(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s)));
-    html=`<h2>Events</h2><div class="grid">`+urls.map((url,i)=>`
+    const entries=buildEventEntries(events);
+    html=`<h2>Events</h2><div class="grid">`+entries.map(ev=>`
       <div class="info-card">
-        ${refs[i] ? `<img src="${imageFromRef(refs[i])}" alt="">` : ""}
-        <h3>${titles[i] || "Event"}</h3>
-        <p><a target="_blank" rel="noopener noreferrer" href="${url}">Open</a></p>
+        ${ev.refs?.[0] ? `<img src="${imageFromRef(ev.refs[0])}" alt="">` : ""}
+        <h3>${escapeHTML(ev.title)}</h3>
+        <p><a target="_blank" rel="noopener noreferrer" href="${ev.url}">Open</a></p>
       </div>
     `).join("")+`</div>`;
   }
