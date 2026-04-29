@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KIM PETRAS — DETOUR</title>
+
+<link rel="stylesheet" href="assets/site1.css">
+<link rel="stylesheet" href="assets/site2.css">
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#fff;color:#050505}
+body{
+  font-family:var(--font-diatype),diatype,"Arial Narrow",Arial,sans-serif;
+  font-weight:300;
+  overflow:hidden;
+  user-select:none;
+}
+
+button,a{font:inherit;color:inherit}
+a{text-decoration:underline;text-underline-offset:3px}
+
+#app{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+  background:#fff;
+}
+
+.bg-noise{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.055;
+  background-image:radial-gradient(#000 1px,transparent 1px);
+  background-size:4px 4px;
+  mix-blend-mode:multiply;
+  z-index:1;
+}
+
+.topbar{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  z-index:50;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  padding:26px 28px;
+  pointer-events:none;
+}
+
+.brand{
+  pointer-events:auto;
+  font-size:clamp(26px,3vw,54px);
+  line-height:.9;
+  letter-spacing:.055em;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+
+.nav{
+  pointer-events:auto;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  max-width:72vw;
+}
+
+.pill{
+  border:2px solid #050505;
+  border-radius:999px;
+  background:rgba(255,255,255,.55);
+  backdrop-filter:blur(4px);
+  padding:10px 22px 9px;
+  font-size:clamp(15px,1.75vw,28px);
+  line-height:1;
+  text-transform:uppercase;
+  cursor:pointer;
+  box-shadow:0 1px 0 rgba(0,0,0,.16);
+}
+
+.pill:hover,.pill.active{
+  background:#050505;
+  color:#fff;
+}
+
+.stage{
+  position:absolute;
+  inset:0;
+  z-index:5;
+  overflow:hidden;
+}
+
+.hero{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding:100px 26px 44px;
+  z-index:3;
+  transition:opacity .35s ease, transform .35s ease;
+}
+
+.hero.hidden{
+  opacity:.08;
+  transform:scale(1.02);
+  pointer-events:none;
+}
+
+.hero-inner{
+  width:min(82vw,1160px);
+  text-align:center;
+}
+
+.hero img{
+  width:100%;
+  max-height:64vh;
+  object-fit:contain;
+  display:block;
+  margin:auto;
+}
+
+.detour-title{
+  margin:12px 0 0;
+  font-size:clamp(82px,14vw,190px);
+  line-height:.78;
+  font-weight:300;
+  letter-spacing:-.075em;
+  text-transform:uppercase;
+}
+
+.scrap-card{
+  position:absolute;
+  width:var(--w,360px);
+  min-width:190px;
+  background:#fff;
+  border:2px solid #050505;
+  padding:9px;
+  box-shadow:9px 9px 0 rgba(0,0,0,.10);
+  transform:translate(var(--x),var(--y)) rotate(var(--r));
+  cursor:grab;
+  touch-action:none;
+  z-index:10;
+}
+
+.scrap-card:active{
+  cursor:grabbing;
+  z-index:999!important;
+}
+
+.scrap-card img{
+  width:100%;
+  display:block;
+  pointer-events:none;
+}
+
+.scrap-card small{
+  display:block;
+  padding-top:8px;
+  font-size:15px;
+  line-height:1.15;
+  word-break:break-word;
+  pointer-events:none;
+}
+
+.overlay{
+  position:absolute;
+  inset:0;
+  z-index:30;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(12px);
+  transition:opacity .24s ease, transform .24s ease;
+}
+
+.overlay.open{
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+
+.panel{
+  position:absolute;
+  right:28px;
+  bottom:28px;
+  width:min(720px,calc(100vw - 56px));
+  max-height:calc(100vh - 150px);
+  overflow:auto;
+  background:rgba(255,255,255,.9);
+  border:2px solid #050505;
+  box-shadow:14px 14px 0 rgba(0,0,0,.12);
+  padding:22px;
+  backdrop-filter:blur(7px);
+}
+
+.panel.wide{
+  width:min(1080px,calc(100vw - 56px));
+}
+
+.panel.left{
+  left:28px;
+  right:auto;
+}
+
+.panel h2{
+  font-size:clamp(42px,7vw,104px);
+  font-weight:300;
+  line-height:.82;
+  margin:0 0 18px;
+  letter-spacing:-.075em;
+  text-transform:uppercase;
+}
+
+.panel h3{
+  margin:10px 0 5px;
+  font-size:28px;
+  font-weight:300;
+  text-transform:uppercase;
+}
+
+.panel p{
+  font-size:19px;
+  line-height:1.25;
+}
+
+.close{
+  position:sticky;
+  top:0;
+  float:right;
+  z-index:4;
+  border:2px solid #050505;
+  background:#fff;
+  border-radius:999px;
+  padding:8px 13px;
+  cursor:pointer;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+}
+
+.info-card{
+  border:2px solid #050505;
+  background:#fff;
+  padding:9px;
+}
+
+.info-card img{
+  width:100%;
+  display:block;
+}
+
+.info-card iframe{
+  width:100%;
+  aspect-ratio:16/9;
+  border:0;
+  display:block;
+}
+
+.text-big{
+  white-space:pre-wrap;
+  font-size:clamp(22px,2.5vw,38px);
+  line-height:1.16;
+  letter-spacing:-.04em;
+}
+
+.filter-dock{
+  position:absolute;
+  left:28px;
+  bottom:28px;
+  z-index:60;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  max-width:calc(100vw - 56px);
+}
+
+.filter-dock .pill{
+  font-size:14px;
+  padding:8px 12px;
+}
+
+.hidden-by-filter{
+  display:none!important;
+}
+
+.status{
+  position:absolute;
+  left:28px;
+  bottom:84px;
+  z-index:60;
+  font-size:13px;
+  opacity:.65;
+  text-transform:uppercase;
+}
+
+@media(max-width:800px){
+  body{overflow:auto}
+  #app{min-height:100vh;height:auto;overflow:visible}
+  .topbar{position:sticky;background:rgba(255,255,255,.86);backdrop-filter:blur(8px)}
+  .nav{max-width:none}
+  .stage{position:relative;min-height:100vh;overflow:visible;padding-top:20px}
+  .hero{position:relative;min-height:85vh}
+  .scrap-card{
+    position:relative;
+    transform:none!important;
+    width:calc(100vw - 36px)!important;
+    margin:18px;
+    left:auto!important;
+    top:auto!important;
+  }
+  .overlay{position:relative;opacity:1;transform:none;display:none}
+  .overlay.open{display:block}
+  .panel,.panel.left,.panel.wide{
+    position:relative;
+    left:auto;right:auto;bottom:auto;
+    width:calc(100vw - 36px);
+    margin:18px;
+    max-height:none;
+  }
+  .filter-dock,.status{position:relative;left:auto;bottom:auto;margin:18px;z-index:10}
+}
+</style>
+</head>
+
+<body class="diatype_b07c8448-module__MHLHUa__variable dancing_script_f76888a4-module__J4cdja__variable antialiased">
+
+<div id="app">
+  <div class="bg-noise"></div>
+
+  <header class="topbar">
+    <div class="brand" data-action="home">KIM PETRAS</div>
+    <nav class="nav">
+      <button class="pill" data-action="gallery">Gallery</button>
+      <button class="pill" data-action="filter">Filter</button>
+      <button class="pill" data-action="music">Music</button>
+      <button class="pill" data-action="lyrics">Lyrics</button>
+      <button class="pill" data-action="events">Events</button>
+      <button class="pill" data-action="videos">Videos</button>
+      <button class="pill" data-action="socials">Socials</button>
+    </nav>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="hero-inner">
+      <img id="heroImg" alt="DETOUR">
+      <h1 class="detour-title">DETOUR</h1>
+    </div>
+  </section>
+
+  <main class="stage" id="stage"></main>
+
+  <div class="status" id="status">state: home</div>
+
+  <div class="filter-dock" id="filterDock" hidden>
+    <button class="pill active" data-filter="curated">Curated</button>
+    <button class="pill" data-filter="all">All Images</button>
+    <button class="pill" data-filter="postcards">Postcards</button>
+    <button class="pill" data-filter="square">Square</button>
+    <button class="pill" data-filter="wide">Wide</button>
+    <button class="pill" data-filter="shuffle">Shuffle</button>
+  </div>
+
+  <section class="overlay" id="overlay">
+    <div class="panel wide" id="panel">
+      <button class="close" data-action="close">Close</button>
+      <div id="panelContent"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const CDN="https://cdn.sanity.io/images/0m1p5xal/production/";
+const state={
+  view:"home",
+  filter:"curated",
+  z:100,
+  docs:[],
+  assets:[],
+  settings:null,
+  refs:[],
+  curatedRefs:[]
+};
+
+function imageFromRef(ref){
+  return CDN + ref.replace(/^image-/,"").replace(/-(png|jpg|jpeg|webp)$/i,".$1");
+}
+
+function allStrings(obj){
+  const out=[];
+  (function walk(x){
+    if(typeof x==="string") out.push(x);
+    else if(Array.isArray(x)) x.forEach(walk);
+    else if(x && typeof x==="object") Object.values(x).forEach(walk);
+  })(obj);
+  return out;
+}
+
+function allImageRefs(obj){
+  const out=[];
+  (function walk(x){
+    if(Array.isArray(x)) x.forEach(walk);
+    else if(x && typeof x==="object"){
+      if(x._ref && x._ref.startsWith("image-")) out.push(x._ref);
+      Object.values(x).forEach(walk);
+    }
+  })(obj);
+  return [...new Set(out)];
+}
+
+function cleanName(asset,ref){
+  return asset?.originalFilename || asset?.path?.split("/").pop() || ref;
+}
+
+function assetByRef(ref){
+  return state.assets.find(a=>a._id===ref);
+}
+
+function classify(ref){
+  const a=assetByRef(ref);
+  const name=(cleanName(a,ref)||"").toLowerCase();
+  const w=a?.metadata?.dimensions?.width || 0;
+  const h=a?.metadata?.dimensions?.height || 0;
+  if(name.includes("postcard") || w===1200 && h===851) return "postcards";
+  if(Math.abs(w-h)<20) return "square";
+  if(w>h) return "wide";
+  return "other";
+}
+
+function setState(next){
+  Object.assign(state,next);
+  document.getElementById("status").textContent=`state: ${state.view} / filter: ${state.filter}`;
+  document.querySelectorAll(".nav .pill").forEach(b=>b.classList.toggle("active",b.dataset.action===state.view));
+  document.getElementById("filterDock").hidden = state.view !== "gallery" && state.view !== "filter";
+  document.getElementById("hero").classList.toggle("hidden",state.view!=="home");
+}
+
+function layoutFor(i){
+  const layouts=[
+    ["2vw","10vh","33vw","-4deg"],["35vw","8vh","37vw","2deg"],["70vw","14vh","30vw","-2deg"],
+    ["8vw","48vh","28vw","2.5deg"],["36vw","42vh","34vw","-2deg"],["66vw","52vh","31vw","3deg"],
+    ["18vw","74vh","30vw","-1deg"],["54vw","76vh","34vw","1.5deg"],["78vw","78vh","27vw","-3deg"],
+    ["4vw","82vh","25vw","2deg"],["42vw","98vh","31vw","-2deg"],["68vw","104vh","29vw","2deg"]
+  ];
+  return layouts[i % layouts.length];
+}
+
+function getVisibleRefs(){
+  let refs = state.filter === "curated" ? state.curatedRefs : state.refs;
+  if(["postcards","square","wide"].includes(state.filter)){
+    refs=state.refs.filter(ref=>classify(ref)===state.filter);
+  }
+  return refs;
+}
+
+function renderCards(){
+  const stage=document.getElementById("stage");
+  stage.innerHTML="";
+  const refs=getVisibleRefs();
+
+  refs.forEach((ref,i)=>{
+    const a=assetByRef(ref);
+    const [x,y,w,r]=layoutFor(i);
+    const card=document.createElement("article");
+    card.className="scrap-card";
+    card.dataset.ref=ref;
+    card.dataset.type=classify(ref);
+    card.style.setProperty("--x",x);
+    card.style.setProperty("--y",y);
+    card.style.setProperty("--w",w);
+    card.style.setProperty("--r",r);
+    card.style.zIndex=10+i;
+    card.innerHTML=`
+      <img src="${imageFromRef(ref)}" alt="">
+      <small>${cleanName(a,ref)}</small>
+    `;
+    stage.appendChild(card);
+  });
+
+  enableDrag();
+}
+
+function openPanel(kind){
+  const overlay=document.getElementById("overlay");
+  const panel=document.getElementById("panel");
+  const content=document.getElementById("panelContent");
+  const docs=state.docs;
+  const events=docs.find(d=>d._type==="events");
+  const music=docs.find(d=>d._type==="music");
+  const lyrics=docs.find(d=>d._type==="lyrics");
+  const videos=docs.find(d=>d._type==="videos");
+  const settings=state.settings;
+
+  panel.className="panel wide";
+  let html="";
+
+  if(kind==="gallery"){
+    html=`<h2>Gallery</h2><p>Drag the DETOUR cards around. Use Filter to switch between curated, all images, postcards, square, and wide assets.</p>`;
+  }
+
+  if(kind==="filter"){
+    html=`<h2>Filter</h2><p>Current: ${state.filter}</p><p>The filter dock is active at the bottom-left.</p>`;
+  }
+
+  if(kind==="music"){
+    const lines=allStrings(music).filter(s=>/Need|Speed|DETOUR|ffm|umusic|lnk\.to|http/i.test(s));
+    html=`<h2>Music</h2><div class="text-big">`+lines.map(s=>/^https?:\/\//.test(s)?`<p><a target="_blank" href="${s}">${s}</a></p>`:`<p>${s}</p>`).join("")+`</div>`;
+  }
+
+  if(kind==="lyrics"){
+    const lines=allStrings(lyrics).filter(s=>s && !/^lyrics$|^reference$|^slug$|^span$|^block$|^normal$/i.test(s));
+    html=`<h2>Lyrics</h2><div class="text-big">${lines.join("\n")}</div>`;
+    panel.className="panel left wide";
+  }
+
+  if(kind==="events"){
+    const refs=allImageRefs(events);
+    const urls=allStrings(events).filter(s=>/^https?:\/\//.test(s));
+    const titles=allStrings(events).filter(s=>/LadyLand|Berlin|Paris|Los Angeles|NYC|DTLA/i.test(s));
+    html=`<h2>Events</h2><div class="grid">`+urls.map((url,i)=>`
+      <div class="info-card">
+        ${refs[i] ? `<img src="${imageFromRef(refs[i])}" alt="">` : ""}
+        <h3>${titles[i] || "Event"}</h3>
+        <p><a target="_blank" href="${url}">Open</a></p>
+      </div>
+    `).join("")+`</div>`;
+  }
+
+  if(kind==="videos"){
+    const urls=allStrings(videos).filter(s=>s.includes("youtube.com/watch"));
+    html=`<h2>Videos</h2><div class="grid">`+urls.map(u=>{
+      const id=(u.match(/[?&]v=([^&]+)/)||[])[1];
+      return `<div class="info-card">
+        ${id ? `<iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe>` : ""}
+        <p><a target="_blank" href="${u}">${u}</a></p>
+      </div>`;
+    }).join("")+`</div>`;
+  }
+
+  if(kind==="socials"){
+    const lines=allStrings(settings).filter(s=>/^https?:\/\//.test(s) || /Instagram|TikTok|Facebook|X/i.test(s));
+    html=`<h2>Socials</h2><div class="text-big">`+lines.map(s=>/^https?:\/\//.test(s)?`<p><a target="_blank" href="${s}">${s}</a></p>`:`<p>${s}</p>`).join("")+`</div>`;
+  }
+
+  content.innerHTML=html;
+  overlay.classList.add("open");
+}
+
+function closePanel(){
+  document.getElementById("overlay").classList.remove("open");
+}
+
+function route(action){
+  if(action==="home"){
+    setState({view:"home"});
+    closePanel();
+    return;
+  }
+  if(action==="close"){
+    closePanel();
+    return;
+  }
+  setState({view:action});
+  if(action==="gallery"){
+    closePanel();
+    renderCards();
+    return;
+  }
+  if(action==="filter"){
+    openPanel("filter");
+    return;
+  }
+  openPanel(action);
+}
+
+function enableDrag(){
+  let active=null, startX=0, startY=0, baseX=0, baseY=0;
+
+  document.querySelectorAll(".scrap-card").forEach(card=>{
+    card.addEventListener("pointerdown",e=>{
+      active=card;
+      active.setPointerCapture(e.pointerId);
+      active.style.zIndex=++state.z;
+      const transform=getComputedStyle(active).transform;
+      const rect=active.getBoundingClientRect();
+      startX=e.clientX;
+      startY=e.clientY;
+      baseX=rect.left;
+      baseY=rect.top;
+      active.dataset.dragging="1";
+    });
+
+    card.addEventListener("pointermove",e=>{
+      if(active!==card || !active.dataset.dragging) return;
+      const dx=e.clientX-startX;
+      const dy=e.clientY-startY;
+      active.style.left=(baseX+dx)+"px";
+      active.style.top=(baseY+dy)+"px";
+      active.style.transform=`rotate(${active.style.getPropertyValue("--r")})`;
+      active.style.setProperty("--x","0px");
+      active.style.setProperty("--y","0px");
+    });
+
+    card.addEventListener("pointerup",()=>{
+      if(active) delete active.dataset.dragging;
+      active=null;
+    });
+  });
+}
+
+document.addEventListener("click",e=>{
+  const action=e.target.closest("[data-action]")?.dataset.action;
+  if(action) route(action);
+
+  const filter=e.target.closest("[data-filter]")?.dataset.filter;
+  if(filter){
+    document.querySelectorAll("[data-filter]").forEach(b=>b.classList.remove("active"));
+    e.target.closest("[data-filter]").classList.add("active");
+
+    if(filter==="shuffle"){
+      state.refs.sort(()=>Math.random()-.5);
+      state.curatedRefs.sort(()=>Math.random()-.5);
+    } else {
+      state.filter=filter;
+    }
+
+    setState({view:"gallery"});
+    renderCards();
+    closePanel();
+  }
+});
+
+fetch("data/sanity-all.json")
+.then(r=>r.json())
+.then(data=>{
+  state.docs=data.result || [];
+  state.assets=state.docs.filter(d=>d._type==="sanity.imageAsset");
+  state.settings=state.docs.find(d=>d._type==="siteSettings");
+
+  const heroRef=state.settings?.seo?.image?.asset?._ref || state.assets[0]?._id;
+  document.getElementById("heroImg").src=imageFromRef(heroRef);
+
+  state.refs=state.assets.map(a=>a._id);
+  state.curatedRefs=allImageRefs(state.settings).filter(ref=>ref!==heroRef);
+
+  setState({view:"home",filter:"curated"});
+  renderCards();
+});
+</script>
+</body>
+</html>
