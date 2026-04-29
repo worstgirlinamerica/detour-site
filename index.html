@@ -298,6 +298,46 @@ a{text-decoration:underline;text-underline-offset:3px}
   gap:18px;
 }
 
+.music-grid{
+  grid-template-columns:repeat(4,minmax(180px,1fr));
+  align-items:stretch;
+}
+
+.music-card{
+  min-height:142px;
+  padding:18px 16px 16px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.music-card h3{
+  margin:0 0 20px;
+  font-size:clamp(28px,2.6vw,48px);
+  line-height:1.08;
+  letter-spacing:-.045em;
+}
+
+.music-card p{
+  margin:0;
+  font-size:clamp(15px,1.25vw,22px);
+  line-height:1.05;
+  word-break:break-word;
+}
+
+.music-card a{
+  display:inline;
+  text-decoration-thickness:1px;
+  text-underline-offset:4px;
+}
+
+@media(max-width:900px){
+  .music-grid{
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  }
+}
+
+
 .info-card{
   border:2px solid #050505;
   background:#fff;
@@ -856,7 +896,7 @@ function openPanel(kind){
     }).filter(item=>item.url || item.title);
 
     html=`<h2>Music</h2>
-      <div class="grid">`+cards.map(item=>`<div class="info-card">
+      <div class="grid music-grid">`+cards.map(item=>`<div class="info-card music-card">
         <h3>${escapeHTML(item.title)}</h3>
         ${item.url ? `<p><a target="_blank" rel="noopener noreferrer" href="${item.url}">${item.url.replace(/^https?:\/\//,"")}</a></p>` : ""}
       </div>`).join("")+`</div>`;
