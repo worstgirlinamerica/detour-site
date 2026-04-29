@@ -354,6 +354,20 @@ a{text-decoration:underline;text-underline-offset:3px}
   margin-top:16px;
 }
 
+.song-shell{
+  display:grid;
+  grid-template-columns:minmax(180px,280px) 1fr;
+  gap:18px;
+  align-items:start;
+  margin-bottom:20px;
+}
+
+.song-cover{border:2px solid #050505;background:#fff;padding:9px}
+.song-cover img{width:100%;display:block}
+.social-only{display:grid;gap:12px;margin-top:8px}
+.social-only a{font-size:clamp(26px,3.5vw,56px);line-height:.95;text-transform:uppercase}
+@media(max-width:800px){.song-shell{grid-template-columns:1fr}}
+
 .script-accent{
   font-family:var(--font-cursive),"Dancing Script",cursive;
   font-weight:400;
@@ -531,9 +545,15 @@ function looksLikeSystemString(s){
   if(!s || typeof s!=="string") return true;
   const t=s.trim();
   if(!t) return true;
+
+  // Sanity image asset refs, document refs, timestamps, and opaque CMS IDs.
   if(/^image-[a-f0-9]+-\d+x\d+-(png|jpg|jpeg|webp)$/i.test(t)) return true;
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/i.test(t)) return true;
   if(/^[a-f0-9]{10,}$/i.test(t)) return true;
-  if(/^(lyrics|reference|slug|span|block|normal|image|song|music|videos|events|siteSettings|page|document|array|object)$/i.test(t)) return true;
+  if(/^[A-Za-z0-9_-]{16,}$/.test(t) && !/\s/.test(t)) return true;
+
+  // Sanity field/type labels that are not public-facing copy.
+  if(/^(lyrics|reference|slug|span|block|normal|image|song|music|videos|events|siteSettings|siteSettings|page|document|array|object|asset|current|_type|_id|_createdAt|_updatedAt|_rev)$/i.test(t)) return true;
   if(/^drafts\./i.test(t)) return true;
   return false;
 }
@@ -611,10 +631,25 @@ function imageGridFor(refs, limit=24){
   }).join("")+`</div>`;
 }
 
+function displayNameForUrl(url){
+  try{
+    const u=new URL(url);
+    const host=u.hostname.replace(/^www\./,"");
+    if(host.includes("instagram")) return "Instagram";
+    if(host.includes("tiktok")) return "TikTok";
+    if(host.includes("facebook")) return "Facebook";
+    if(host.includes("youtube")) return "YouTube";
+    if(host.includes("x.com") || host.includes("twitter")) return "X";
+    if(host.includes("ffm.to")) return "Listen";
+    if(host.includes("umusic")) return "Pre-save";
+    return host;
+  } catch(e){ return url; }
+}
+
 function linkListFor(urls){
   const clean=unique(urls).filter(Boolean);
   if(!clean.length) return "";
-  return `<div class="link-list">`+clean.map(url=>`<a target="_blank" rel="noopener noreferrer" href="${url}">${url.replace(/^https?:\/\//,"")}</a>`).join("")+`</div>`;
+  return `<div class="link-list">`+clean.map(url=>`<a target="_blank" rel="noopener noreferrer" href="${url}">${displayNameForUrl(url)}</a>`).join("")+`</div>`;
 }
 
 function youtubeEmbed(url){
@@ -696,10 +731,8 @@ function openPanel(kind){
   if(kind==="socials"){
     const urls=unique(allStrings(settings).filter(s=>/^https?:\/\//.test(s)));
     const socialUrls=urls.filter(s=>/instagram|tiktok|facebook|twitter|x\.com|youtube/i.test(s));
-    const refs=allImageRefs(settings).filter(ref=>ref!==settings?.seo?.image?.asset?._ref);
     html=`<h2>Socials</h2>
-      ${linkListFor(socialUrls.length ? socialUrls : urls)}
-      ${imageGridFor(refs,18)}`;
+      <div class="social-only">${(socialUrls.length ? socialUrls : urls).map(url=>`<a target="_blank" rel="noopener noreferrer" href="${url}">${displayNameForUrl(url)}</a>`).join("")}</div>`;
   }
 
   content.innerHTML=html;
